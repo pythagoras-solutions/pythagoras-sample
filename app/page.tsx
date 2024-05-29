@@ -1,6 +1,8 @@
 // app/page.tsx
 'use client';
 
+import axios from 'axios';
+import jsPDF from 'jspdf';
 import { useEffect, useState } from 'react';
 
 const FormPage = () => {
@@ -10,30 +12,35 @@ const FormPage = () => {
   const [status, setStatus] = useState('');
   const [formSubmitted, setFormSubmitted] = useState(false);
 
-  console.log('🚀 ~ FormPage ~ status:', status);
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    const formData = {
-      username,
-      product,
-    };
+    const pdfBlob = await generatePDF(username, product);
+    const pdfFile: File = new File([pdfBlob], 'file.pdf', {
+      type: 'application/pdf',
+    });
+    console.log('🚀 ~ handleSubmit ~ pdfFile:', pdfFile);
+
+    // Create a temporary anchor element to trigger the download
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(pdfFile);
+    downloadLink.download = `example_form.pdf`; // Specify the filename
+    downloadLink.click();
+
+    const bodyFormData = new FormData();
+    bodyFormData.append('FirstName', username);
+    bodyFormData.append('LastName', 'dude');
+    bodyFormData.append('SigningEmail', `${username}@thedude.com`);
+    bodyFormData.append('File', pdfFile);
 
     try {
-      const response = await fetch('/api/submit', {
-        method: 'POST',
+      const response = await axios.post('/api/submit', bodyFormData, {
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'multipart/form-data',
         },
-        body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const data = await response.json();
+      const data = await response.data;
 
       setMessage('Form submitted successfully!');
       console.log('Form submitted successfully:', data);
@@ -41,13 +48,10 @@ const FormPage = () => {
       setFormSubmitted(true); // Update formSubmitted state after submission
 
       // Convert the base64 PDF data to a Blob
-      const pdfBlob = new Blob([Buffer.from(data.pdf, 'base64')], {
-        type: 'application/pdf',
-      });
 
       // Create a temporary anchor element to trigger the download
       const downloadLink = document.createElement('a');
-      downloadLink.href = URL.createObjectURL(pdfBlob);
+      downloadLink.href = URL.createObjectURL(pdfFile);
       downloadLink.download = `example_form.pdf`; // Specify the filename
       downloadLink.click();
 
@@ -58,6 +62,23 @@ const FormPage = () => {
       console.error('There was a problem with the form submission:', error);
     }
   };
+
+  async function generatePDF(username: string, product: string): Promise<Blob> {
+    const doc = new jsPDF();
+
+    // Add content to the PDF
+    doc.text(`Hi ${username},`, 10, 10);
+    doc.text(
+      `You have chosen ${product}. Thank you for submitting the form.`,
+      10,
+      20,
+    );
+
+    // Generate PDF and get it as a Blob
+    const pdfBlob = doc.output('blob');
+
+    return pdfBlob;
+  }
 
   useEffect(() => {
     if (formSubmitted) {
