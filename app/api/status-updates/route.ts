@@ -5,13 +5,13 @@ import { NextRequest } from 'next/server';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
-  const clientID = searchParams.get('clientID');
+  const email = searchParams.get('email');
 
-  if (!clientID) {
-    return new Response('Client ID is required', { status: 400 });
+  if (!email) {
+    return new Response('Email is required', { status: 400 });
   }
 
-  const status = await kv.get(`status:${clientID}`);
+  const status = await kv.get(`status:${email}`);
 
   const headers = new Headers({
     'Content-Type': 'text/event-stream',

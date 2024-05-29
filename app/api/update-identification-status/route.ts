@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 // Define the schema for validation using zod
 const statusUpdateSchema = z.object({
-  clientID: z.string().min(1, { message: 'Client ID is required' }),
+  email: z.string().min(1, { message: 'Email is required' }),
   status: z.string().min(1, { message: 'Status is required' }),
 });
 
@@ -23,11 +23,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { clientID, status } = validationResult.data;
+    const { email, status } = validationResult.data;
 
     // Store the status update in the KV store
-    await kv.set(`status:${clientID}`, status);
-    console.log('Received status update:', { clientID, status });
+    await kv.set(`status:${email}`, status);
+    console.log('Received status update:', { email, status });
 
     return NextResponse.json({
       message: 'Status update received successfully',
