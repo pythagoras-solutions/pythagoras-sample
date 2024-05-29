@@ -34,28 +34,25 @@ const FormPage = () => {
       }
 
       const data = await response.json();
+
       setMessage('Form submitted successfully!');
       console.log('Form submitted successfully:', data);
 
       setFormSubmitted(true); // Update formSubmitted state after submission
 
-      // Check if the response contains a PDF buffer
-
-      console.log('🚀 ~ data.pdf ~ data.pdf:', data);
       // Convert the base64 PDF data to a Blob
       const pdfBlob = new Blob([Buffer.from(data.pdf, 'base64')], {
         type: 'application/pdf',
       });
 
-      console.log('🚀 ~ pdfBlob ~ pdfBlob:', pdfBlob);
-
       // Create a temporary anchor element to trigger the download
       const downloadLink = document.createElement('a');
       downloadLink.href = URL.createObjectURL(pdfBlob);
-      downloadLink.download = 'form_submission.pdf'; // Specify the filename
-
-      // Trigger the download
+      downloadLink.download = `example_form.pdf`; // Specify the filename
       downloadLink.click();
+
+      // Redirect to url in new page
+      window.open(data.redirectUrl, '_blank');
     } catch (error) {
       setMessage('There was a problem with the form submission.');
       console.error('There was a problem with the form submission:', error);

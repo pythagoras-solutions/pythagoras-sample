@@ -1,6 +1,7 @@
 // app/api/submit/route.ts
 
 import { kv } from '@vercel/kv';
+import axios from 'axios';
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 import { z } from 'zod';
@@ -43,29 +44,35 @@ export async function POST(request: NextRequest) {
     bodyFormData.append('LastName', 'dude');
     bodyFormData.append('SigningEmail', `${username}@thedude.com`);
 
-    const file = new File([pdf], 'file.pdf');
-    bodyFormData.append('File', file);
+    const pdfFile: File = new File([pdf], 'file.pdf', {
+      type: 'application/pdf',
+    });
+
+    bodyFormData.append('File', pdfFile);
 
     console.log('🚀 ~ POST ~ bodyFormData:', bodyFormData);
 
-    const response = await fetch(
-      ' https://api.360.pythagoras-solutions.com/dataProvider/Certifaction/GetUrlForSignedFile',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization:
-            'Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJWY1c3OEQzUUVUelNGSGJKVHFuNmN6cnhUelZ5aTJXNVBBcWlqTzA0UVpFIn0.eyJleHAiOjE3MTY5NjcyMjIsImlhdCI6MTcxNjk2NjkyMiwiYXV0aF90aW1lIjoxNzE2OTYzNjIyLCJqdGkiOiIxY2ZjNDZlYS00MWNjLTQ5NGMtYWQxNS0wYmFhZTk5NGQ3ODYiLCJpc3MiOiJodHRwczovL3Nzby4zNjAucHl0aGFnb3Jhcy1zb2x1dGlvbnMuY29tL3JlYWxtcy9UZW5hbnQxIiwic3ViIjoiZWY5OWQ3MWItMjBlNS00MWYwLTgzNTYtMjE0NjFkNDFhNWJjIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiVnVlVUkiLCJub25jZSI6IjgwYzFjYjcwLTJjMzgtNDgwOS05MTNhLTNlNTAzNWM3MDNiMyIsInNlc3Npb25fc3RhdGUiOiI3NTQyNWUzMC1jMzExLTRkOWUtYTA4MS0xNTNmMjQ3NDdkZjEiLCJzY29wZSI6Im9wZW5pZCBhcGktcm9sZSBwcm9maWxlIiwic2lkIjoiNzU0MjVlMzAtYzMxMS00ZDllLWEwODEtMTUzZjI0NzQ3ZGYxIiwidGltZXpvbmUiOiJFdXJvcGUvTGp1YmxqYW5hIiwicm9sZXMiOlsiQWRtaW5pc3RyYXRvciIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJkZWZhdWx0LXJvbGVzLXRlbmFudDEiXSwicHJlZmVycmVkX3VzZXJuYW1lIjoibWFuYWdlciJ9.g0rJ_REf1GQlcFPTDMOJkchaiKybfLbFeklwSRGo9Qb9tel-4TTzIsOw-9e_xUpkzISr4cuBdyGbI36erDUUGC5atIgRgUvEgNKeEWtYU_dHsf9Gb6HzqVcRNMfuob_m81GK4ioLf7sBUbgUSTfBf2B2Ul3jEGRmoa8-ZpyCl4-Yiibr5HK8s1iTiZebDR6bLFdet3ztfPWMZeJtcZ_HAcbON3v6AJYQD0utZQOgHGwXq9WzD-lA79suayK0FO6IkvJ-tkD2gvzTRQ3KFSQCJ7eaoAZQfiKN7XwotVQ7Xe5SZATgHjgJBrsG77UBkGp52AroznUhXLraxRwPfgsI1g',
-        },
-        body: bodyFormData,
+    const URL =
+      'https://api.360.pythagoras-solutions.com/dataProvider/Certifaction/GetUrlForSignedFile';
+
+    const params = bodyFormData;
+
+    const customConfig = {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization:
+          'Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJWY1c3OEQzUUVUelNGSGJKVHFuNmN6cnhUelZ5aTJXNVBBcWlqTzA0UVpFIn0.eyJleHAiOjE3MTY5NzU0ODUsImlhdCI6MTcxNjk3NTE4NSwiYXV0aF90aW1lIjoxNzE2OTYzNjIyLCJqdGkiOiIwM2NkZGNkYS1hNmRhLTRjNDctYjhmZi00NjJiODU0ZWYxNDEiLCJpc3MiOiJodHRwczovL3Nzby4zNjAucHl0aGFnb3Jhcy1zb2x1dGlvbnMuY29tL3JlYWxtcy9UZW5hbnQxIiwic3ViIjoiZWY5OWQ3MWItMjBlNS00MWYwLTgzNTYtMjE0NjFkNDFhNWJjIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiVnVlVUkiLCJub25jZSI6IjVlODgwYzY2LTQ0MzQtNGNiMy1hZTY4LTczODZiOTQ4OTk4MyIsInNlc3Npb25fc3RhdGUiOiI3NTQyNWUzMC1jMzExLTRkOWUtYTA4MS0xNTNmMjQ3NDdkZjEiLCJzY29wZSI6Im9wZW5pZCBhcGktcm9sZSBwcm9maWxlIiwic2lkIjoiNzU0MjVlMzAtYzMxMS00ZDllLWEwODEtMTUzZjI0NzQ3ZGYxIiwidGltZXpvbmUiOiJFdXJvcGUvTGp1YmxqYW5hIiwicm9sZXMiOlsiQWRtaW5pc3RyYXRvciIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJkZWZhdWx0LXJvbGVzLXRlbmFudDEiXSwicHJlZmVycmVkX3VzZXJuYW1lIjoibWFuYWdlciJ9.bVTn-hArAsvQusVl1cCbJUkSrzlPmAJjwBbop1LAWjwkcJ-0w96hQ82vMtOfJvPATQk0W5sZZsu6f00z2peoZCiU7i7tJPTZsJR-rcpVu-M2JCJpo2lzzPdMhaitXhNhrCpnrChgws1AT5KJVAYwHiMG0AwYJ4kXYPGMcUd9rAlGfBrXI0GQMErzNb3mk7zqTNkX9cQADj7MKaPm_yoNBdtenA12t6qHZvZbhgc65gukqhQlQ4Dq09CVkapdPOBYC3eu6Ys7GpPq-cYioj1AQE7mdgLNbOcGiShLcCmY72OLIlZ7o34WSVMkbv8ymyLVnFxEV8RlDoTdMb-aAqRrmQ',
       },
-    );
+    };
 
-    console.log('🚀 ~ POST ~ response:', response);
+    const response = await axios.post(URL, params, customConfig);
 
-    // if (!response.ok) {
-    //   throw new Error('Failed to send data to identification service');
-    // }
+    if (response.status !== 200) {
+      return NextResponse.json(
+        { message: 'Error submitting form', response: response.data },
+        { status: 500 },
+      );
+    }
 
     // Store the initial status in the KV store
     await kv.set(`status:${username}`, 'submitted');
@@ -74,6 +81,7 @@ export async function POST(request: NextRequest) {
       message: 'Form submitted successfully',
       username,
       product,
+      redirectUrl: response.data,
       pdf,
     });
   } catch (error: any) {
