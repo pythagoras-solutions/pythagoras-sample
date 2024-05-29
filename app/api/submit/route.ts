@@ -38,16 +38,30 @@ export async function POST(request: NextRequest) {
     // TODO: store this pdf in a DB and trigger this again if not completed
 
     // TODO: Send the form data and PDF to the external service
-    // const response = await fetch('https://my-identification-service/identify', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     data: { username, product },
-    //     pdf, // Send the PDF buffer directly
-    //   }),
-    // });
+    const bodyFormData = new FormData();
+    bodyFormData.append('FirstName', username);
+    bodyFormData.append('LastName', 'dude');
+    bodyFormData.append('SigningEmail', `${username}@thedude.com`);
+
+    const file = new File([pdf], 'file.pdf');
+    bodyFormData.append('File', file);
+
+    console.log('🚀 ~ POST ~ bodyFormData:', bodyFormData);
+
+    const response = await fetch(
+      ' https://api.360.pythagoras-solutions.com/dataProvider/Certifaction/GetUrlForSignedFile',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization:
+            'Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJWY1c3OEQzUUVUelNGSGJKVHFuNmN6cnhUelZ5aTJXNVBBcWlqTzA0UVpFIn0.eyJleHAiOjE3MTY5NjcyMjIsImlhdCI6MTcxNjk2NjkyMiwiYXV0aF90aW1lIjoxNzE2OTYzNjIyLCJqdGkiOiIxY2ZjNDZlYS00MWNjLTQ5NGMtYWQxNS0wYmFhZTk5NGQ3ODYiLCJpc3MiOiJodHRwczovL3Nzby4zNjAucHl0aGFnb3Jhcy1zb2x1dGlvbnMuY29tL3JlYWxtcy9UZW5hbnQxIiwic3ViIjoiZWY5OWQ3MWItMjBlNS00MWYwLTgzNTYtMjE0NjFkNDFhNWJjIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiVnVlVUkiLCJub25jZSI6IjgwYzFjYjcwLTJjMzgtNDgwOS05MTNhLTNlNTAzNWM3MDNiMyIsInNlc3Npb25fc3RhdGUiOiI3NTQyNWUzMC1jMzExLTRkOWUtYTA4MS0xNTNmMjQ3NDdkZjEiLCJzY29wZSI6Im9wZW5pZCBhcGktcm9sZSBwcm9maWxlIiwic2lkIjoiNzU0MjVlMzAtYzMxMS00ZDllLWEwODEtMTUzZjI0NzQ3ZGYxIiwidGltZXpvbmUiOiJFdXJvcGUvTGp1YmxqYW5hIiwicm9sZXMiOlsiQWRtaW5pc3RyYXRvciIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJkZWZhdWx0LXJvbGVzLXRlbmFudDEiXSwicHJlZmVycmVkX3VzZXJuYW1lIjoibWFuYWdlciJ9.g0rJ_REf1GQlcFPTDMOJkchaiKybfLbFeklwSRGo9Qb9tel-4TTzIsOw-9e_xUpkzISr4cuBdyGbI36erDUUGC5atIgRgUvEgNKeEWtYU_dHsf9Gb6HzqVcRNMfuob_m81GK4ioLf7sBUbgUSTfBf2B2Ul3jEGRmoa8-ZpyCl4-Yiibr5HK8s1iTiZebDR6bLFdet3ztfPWMZeJtcZ_HAcbON3v6AJYQD0utZQOgHGwXq9WzD-lA79suayK0FO6IkvJ-tkD2gvzTRQ3KFSQCJ7eaoAZQfiKN7XwotVQ7Xe5SZATgHjgJBrsG77UBkGp52AroznUhXLraxRwPfgsI1g',
+        },
+        body: bodyFormData,
+      },
+    );
+
+    console.log('🚀 ~ POST ~ response:', response);
 
     // if (!response.ok) {
     //   throw new Error('Failed to send data to identification service');
@@ -63,6 +77,7 @@ export async function POST(request: NextRequest) {
       pdf,
     });
   } catch (error: any) {
+    console.error('Internal server error:', error);
     return NextResponse.json(
       { message: 'Internal server error', error: error.message },
       { status: 500 },
