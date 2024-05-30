@@ -2,49 +2,82 @@
 
 import { kv } from '@vercel/kv';
 import axios from 'axios';
+import { uniqueId } from 'lodash';
 import { NextRequest, NextResponse } from 'next/server';
-const API_URL =
-  'https://api.360.pythagoras-solutions.com/dataProvider/Certifaction/GetUrlForSignedFile';
+const API_URL = 'https://api.360.pythagoras-solutions.com';
 
 const AUTH_URL =
   'https://sso.360.pythagoras-solutions.com/realms/Tenant1/protocol/openid-connect/token';
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-
-    kv.set(`status:${formData.get('SigningEmail')}`, 'pending');
-
-    // TODO: store this pdf in a DB and trigger this again if not completed
-
-    const params = formData;
-
-    // Add logic to get Authroization bearer token from backend - username and password
     const token = await getBearerToken();
 
-    const customConfig = {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        Authorization:
-          token && token.length > 0 ? `Bearer ${token}` : undefined,
-      },
+    const formData = await request.formData();
+    const client = {
+      pid: uniqueId('andras-'),
+      personTypeID: (formData.get('PersonTypeID') as string) || 'U',
+      relationStateID: Number(formData.get('RelationStateID')) || 1,
+      name: formData.get('LastName') as string,
+      firstName: formData.get('FirstName') as string,
+      dateOfBirth: formData.get('DateOfBirth') as string,
+      dateOfDeath: (formData.get('DateOfDeath') as string) || null,
+      nationalityCode: formData.get('NationalityCode') as string,
+      nationality2Code: formData.get('Nationality2Code') as string,
+      domicileCode: formData.get('DomicileCode') as string,
+      openingDate:
+        (formData.get('OpeningDate') as string) || new Date().toISOString(),
+      lastSavedDate: (formData.get('LastSavedDate') as string) || null,
+      closingDate: (formData.get('ClosingDate') as string) || null,
+      genderID: (formData.get('GenderID') as string) || 'UE',
+      duns: (formData.get('Duns') as string) || '',
+      customProperties: [
+        {
+          customPropertyId: '1b82f0b5-cb68-4b53-beac-64d370d0dd08', // email if you don't see...
+          value: formData.get('SigningEmail') as string,
+        },
+      ],
     };
 
-    const response = await axios.post(API_URL, params, customConfig);
+    // create client
+    // TODO: Store PID in KV store
+    await axios.post(
+      `${API_URL}/partner/Partner/InsertUpdateOrDeletePartner`,
+      client,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
 
-    if (response.status !== 200) {
-      return NextResponse.json(
-        { message: 'Error submitting form', response: response.data },
-        { status: 500 },
-      );
-    }
+    // send the signing request
+    const urlForSignedFileResponse = await axios.post(
+      `${API_URL}/dataProvider/Certifaction/GetUrlForSignedFile`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    // trigger KYC screening
+    axios.post(`${API_URL}/dataProvider/Screening/TriggerScreening`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     // Store the initial status in the KV store
     await kv.set(`status:${formData.get('SigningEmail')}`, 'submitted');
 
     return NextResponse.json({
       message: 'Form submitted successfully',
-      redirectUrl: response.data,
+      redirectUrl: urlForSignedFileResponse.data,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -53,10 +86,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-const generateAndSendEmail = async (signerEmail: string) => {
-  // TODO: Trigger CRM to send out email to signer
-};
 
 const getBearerToken = async () => {
   if (!process.env.USERNAME || !process.env.PASSWORD) {
