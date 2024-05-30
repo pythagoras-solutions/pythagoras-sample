@@ -3,6 +3,11 @@
 import { kv } from '@vercel/kv';
 import axios from 'axios';
 import { NextRequest, NextResponse } from 'next/server';
+const API_URL =
+  'https://api.360.pythagoras-solutions.com/dataProvider/Certifaction/GetUrlForSignedFile';
+
+const AUTH_URL =
+  'https://sso.360.pythagoras-solutions.com/realms/Tenant1/protocol/openid-connect/token';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,20 +17,20 @@ export async function POST(request: NextRequest) {
 
     // TODO: store this pdf in a DB and trigger this again if not completed
 
-    const URL =
-      'https://api.360.pythagoras-solutions.com/dataProvider/Certifaction/GetUrlForSignedFile';
-
     const params = formData;
+
+    // Add logic to get Authroization bearer token from backend - username and password
+    const token = await getBearerToken();
 
     const customConfig = {
       headers: {
         'Content-Type': 'multipart/form-data',
         Authorization:
-          'Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJWY1c3OEQzUUVUelNGSGJKVHFuNmN6cnhUelZ5aTJXNVBBcWlqTzA0UVpFIn0.eyJleHAiOjE3MTY5NzU0ODUsImlhdCI6MTcxNjk3NTE4NSwiYXV0aF90aW1lIjoxNzE2OTYzNjIyLCJqdGkiOiIwM2NkZGNkYS1hNmRhLTRjNDctYjhmZi00NjJiODU0ZWYxNDEiLCJpc3MiOiJodHRwczovL3Nzby4zNjAucHl0aGFnb3Jhcy1zb2x1dGlvbnMuY29tL3JlYWxtcy9UZW5hbnQxIiwic3ViIjoiZWY5OWQ3MWItMjBlNS00MWYwLTgzNTYtMjE0NjFkNDFhNWJjIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiVnVlVUkiLCJub25jZSI6IjVlODgwYzY2LTQ0MzQtNGNiMy1hZTY4LTczODZiOTQ4OTk4MyIsInNlc3Npb25fc3RhdGUiOiI3NTQyNWUzMC1jMzExLTRkOWUtYTA4MS0xNTNmMjQ3NDdkZjEiLCJzY29wZSI6Im9wZW5pZCBhcGktcm9sZSBwcm9maWxlIiwic2lkIjoiNzU0MjVlMzAtYzMxMS00ZDllLWEwODEtMTUzZjI0NzQ3ZGYxIiwidGltZXpvbmUiOiJFdXJvcGUvTGp1YmxqYW5hIiwicm9sZXMiOlsiQWRtaW5pc3RyYXRvciIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJkZWZhdWx0LXJvbGVzLXRlbmFudDEiXSwicHJlZmVycmVkX3VzZXJuYW1lIjoibWFuYWdlciJ9.bVTn-hArAsvQusVl1cCbJUkSrzlPmAJjwBbop1LAWjwkcJ-0w96hQ82vMtOfJvPATQk0W5sZZsu6f00z2peoZCiU7i7tJPTZsJR-rcpVu-M2JCJpo2lzzPdMhaitXhNhrCpnrChgws1AT5KJVAYwHiMG0AwYJ4kXYPGMcUd9rAlGfBrXI0GQMErzNb3mk7zqTNkX9cQADj7MKaPm_yoNBdtenA12t6qHZvZbhgc65gukqhQlQ4Dq09CVkapdPOBYC3eu6Ys7GpPq-cYioj1AQE7mdgLNbOcGiShLcCmY72OLIlZ7o34WSVMkbv8ymyLVnFxEV8RlDoTdMb-aAqRrmQ', // completely random token
+          token && token.length > 0 ? `Bearer ${token}` : undefined,
       },
     };
 
-    const response = await axios.post(URL, params, customConfig);
+    const response = await axios.post(API_URL, params, customConfig);
 
     if (response.status !== 200) {
       return NextResponse.json(
@@ -51,4 +56,22 @@ export async function POST(request: NextRequest) {
 
 const generateAndSendEmail = async (signerEmail: string) => {
   // TODO: Trigger CRM to send out email to signer
+};
+
+const getBearerToken = async () => {
+  if (!process.env.USERNAME || !process.env.PASSWORD) {
+    throw new Error('Username and password not set');
+  }
+
+  const params = new URLSearchParams();
+  params.append('grant_type', 'password');
+  params.append('client_id', 'VueUI');
+  params.append('username', process.env.USERNAME);
+  params.append('password', process.env.PASSWORD);
+  try {
+    const response = await axios.post(AUTH_URL, params);
+    return response.data.access_token;
+  } catch (error) {
+    console.error('Error getting bearer token', error);
+  }
 };
