@@ -2,8 +2,9 @@
 
 import { kv } from '@vercel/kv';
 import axios from 'axios';
-import { uniqueId } from 'lodash';
 import { NextRequest, NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
+
 const API_URL = 'https://api.360.pythagoras-solutions.com';
 
 const AUTH_URL =
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const client = {
-      pid: uniqueId('andras-'),
+      pid: uuidv4(),
       personTypeID: (formData.get('PersonTypeID') as string) || 'U',
       relationStateID: Number(formData.get('RelationStateID')) || 1,
       name: formData.get('LastName') as string,
@@ -41,16 +42,20 @@ export async function POST(request: NextRequest) {
 
     // create client
     // TODO: Store PID in KV store
-    await axios.post(
-      `${API_URL}/partner/Partner/InsertUpdateOrDeletePartner`,
-      client,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+    try {
+      await axios.post(
+        `${API_URL}/partner/Partner/InsertUpdateOrDeletePartner`,
+        client,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         },
-      },
-    );
+      );
+    } catch (error: any) {
+      console.error('Error creating client', error);
+    }
 
     // send the signing request
     const urlForSignedFileResponse = await axios.post(
@@ -65,12 +70,16 @@ export async function POST(request: NextRequest) {
     );
 
     // trigger KYC screening
-    axios.post(`${API_URL}/dataProvider/Screening/TriggerScreening`, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      axios.post(`${API_URL}/dataProvider/Screening/TriggerScreening`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch (error: any) {
+      console.error('Error triggering KYC screening', error);
+    }
 
     // Store the initial status in the KV store
     await kv.set(`status:${formData.get('SigningEmail')}`, 'submitted');
@@ -99,6 +108,9 @@ const getBearerToken = async () => {
   params.append('password', process.env.PASSWORD);
   try {
     const response = await axios.post(AUTH_URL, params);
+
+    console.log('🚀 ~ getBearerToken ~ response:', response.data.access_token);
+
     return response.data.access_token;
   } catch (error) {
     console.error('Error getting bearer token', error);
